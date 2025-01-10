@@ -1,6 +1,7 @@
 import axios from 'axios';
 import React, { useCallback, useMemo } from 'react';
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useSession } from 'next-auth/react';
 
 import useCurrentUser from '@/hooks/useCurrentUser';
 import useFavorites from '@/hooks/useFavorites';
@@ -10,34 +11,46 @@ interface FavoriteButtonProps {
 }
 
 const FavoriteButton: React.FC<FavoriteButtonProps> = ({ movieId }) => {
+  const { data: session } = useSession();
   const { mutate: mutateFavorites } = useFavorites();
-
   const { data: currentUser, mutate } = useCurrentUser();
 
   const isFavorite = useMemo(() => {
     const list = currentUser?.favoriteIds || [];
-
     return list.includes(movieId);
   }, [currentUser, movieId]);
 
   const toggleFavorites = useCallback(async () => {
-    let response;
-
-    if (isFavorite) {
-      response = await axios.delete('/api/favorite', { data: { movieId } });
-    } else {
-      response = await axios.post('/api/favorite', { movieId });
+    if (!session || !currentUser) {
+      return;
     }
 
-    const updatedFavoriteIds = response?.data?.favoriteIds;
+    try {
+      let response;
 
-    mutate({ 
-      ...currentUser, 
-      favoriteIds: updatedFavoriteIds,
-    });
-    mutateFavorites();
-  }, [movieId, isFavorite, currentUser, mutate, mutateFavorites]);
-  
+      if (isFavorite) {
+        response = await axios.delete('/api/favorite', { data: { movieId } });
+      } else {
+        response = await axios.post('/api/favorite', { movieId });
+      }
+
+      const updatedFavoriteIds = response?.data?.favoriteIds;
+
+      mutate({
+        ...currentUser,
+        favoriteIds: updatedFavoriteIds,
+      });
+
+      mutateFavorites();
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  }, [movieId, isFavorite, session, currentUser, mutate, mutateFavorites]);
+
+  if (!session) {
+    return null;
+  }
+
   const Icon = isFavorite ? CheckIcon : PlusIcon;
 
   return (

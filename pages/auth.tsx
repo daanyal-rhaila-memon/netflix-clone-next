@@ -3,9 +3,6 @@ import { useCallback, useState } from 'react';
 import { NextPageContext } from 'next';
 import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { FcGoogle } from 'react-icons/fc';
-import { FaGithub } from 'react-icons/fa';
-
 import Input from '@/components/Input';
 
 export async function getServerSideProps(context: NextPageContext) {
@@ -27,34 +24,86 @@ export async function getServerSideProps(context: NextPageContext) {
 
 const Auth = () => {
   const router = useRouter();
-
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-
   const [variant, setVariant] = useState('login');
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const toggleVariant = useCallback(() => {
     setVariant((currentVariant) => currentVariant === 'login' ? 'register' : 'login');
+    // Clear errors when switching variants
+    setErrors({ email: '', password: '', name: '' });
   }, []);
 
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = { email: '', password: '', name: '' };
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      newErrors.email = 'Email is required';
+      isValid = false;
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+      isValid = false;
+    }
+
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+      isValid = false;
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      isValid = false;
+    }
+
+    // Name validation (only for register)
+    if (variant === 'register' && !name) {
+      newErrors.name = 'Username is required';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const login = useCallback(async () => {
+    if (!validateForm()) return;
+
     try {
-      await signIn('credentials', {
+      setIsLoading(true);
+      const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
         callbackUrl: '/'
       });
 
+      if (result?.error) {
+        setErrors({ name: result.error, email: result.error, password: result.error });
+        return;
+      }
+
       router.push('/profiles');
     } catch (error) {
       console.log(error);
+    } finally {
+      setIsLoading(false);
     }
   }, [email, password, router]);
 
   const register = useCallback(async () => {
+    if (!validateForm()) return;
+
     try {
+      setIsLoading(true);
       await axios.post('/api/register', {
         email,
         name,
@@ -62,8 +111,12 @@ const Auth = () => {
       });
 
       login();
-    } catch (error) {
-        console.log(error);
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        setErrors(prev => ({ ...prev, email: error.response.data.error }));
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, [email, name, password, login]);
 
@@ -80,46 +133,55 @@ const Auth = () => {
             </h2>
             <div className="flex flex-col gap-4">
               {variant === 'register' && (
-                <Input
-                  id="name"
-                  type="text"
-                  label="Username"
-                  value={name}
-                  onChange={(e: any) => setName(e.target.value)} 
-                />
+                <div>
+                  <Input
+                    id="name"
+                    type="text"
+                    label="Username"
+                    value={name}
+                    onChange={(e: any) => setName(e.target.value)}
+                    error={errors.name}
+                  />
+                  {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                </div>
               )}
-              <Input
-                id="email"
-                type="email"
-                label="Email address or phone number"
-                value={email}
-                onChange={(e: any) => setEmail(e.target.value)} 
-              />
-              <Input
-                type="password" 
-                id="password" 
-                label="Password" 
-                value={password}
-                onChange={(e: any) => setPassword(e.target.value)} 
-              />
+              <div>
+                <Input
+                  id="email"
+                  type="email"
+                  label="Email address"
+                  value={email}
+                  onChange={(e: any) => setEmail(e.target.value)}
+                  error={errors.email}
+                />
+                {/* {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>} */}
+              </div>
+              <div>
+                <Input
+                  type="password"
+                  id="password"
+                  label="Password"
+                  value={password}
+                  onChange={(e: any) => setPassword(e.target.value)}
+                  error={errors.password}
+                />
+                {/* {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>} */}
+                {errors.email && <p className="text-red-500 text-sm mt-1">email or password is incorrect</p>}
+              </div>
             </div>
-            <button onClick={variant === 'login' ? login : register} className="bg-red-600 py-3 text-white rounded-md w-full mt-10 hover:bg-red-700 transition">
-              {variant === 'login' ? 'Login' : 'Sign up'}
+            <button
+              onClick={variant === 'login' ? login : register}
+              disabled={isLoading}
+              className={`bg-red-600 py-3 text-white rounded-md w-full mt-10 hover:bg-red-700 transition
+                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isLoading ? 'Loading...' : variant === 'login' ? 'Login' : 'Sign up'}
             </button>
-            <div className="flex flex-row items-center gap-4 mt-8 justify-center">
-              <div onClick={() => signIn('google', { callbackUrl: '/profiles' })} className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                <FcGoogle size={32} />
-              </div>
-              <div onClick={() => signIn('github', { callbackUrl: '/profiles' })} className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                <FaGithub size={32} />
-              </div>
-            </div>
             <p className="text-neutral-500 mt-12">
               {variant === 'login' ? 'First time using Netflix?' : 'Already have an account?'}
               <span onClick={toggleVariant} className="text-white ml-1 hover:underline cursor-pointer">
                 {variant === 'login' ? 'Create an account' : 'Login'}
               </span>
-              .
             </p>
           </div>
         </div>
