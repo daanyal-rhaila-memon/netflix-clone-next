@@ -49,7 +49,8 @@ const MovieCard: React.FC<MovieCardProps> = ({ data }) => {
         group-hover:translate-x-[2vw]
         group-hover:opacity-100
       ">
-        <img onClick={redirectToWatch} src='/images/thumbnail.jpg' alt={data.title} draggable={false} className="
+
+        <img onClick={redirectToWatch} src={data.thumbnailUrl} alt={data.title} draggable={false} className="
           cursor-pointer
           object-cover
           transition
