@@ -13,25 +13,50 @@ const Billboard: React.FC = () => {
     openModal(data?.id);
   }, [openModal, data?.id]);
 
+  const getEmbedUrl = (url: string) => {
+    if (!url) return '';
 
+    // Handle youtu.be format
+    if (url.includes('youtu.be')) {
+      const id = url.split('/').pop()?.split('?')[0];
+      return `https://www.youtube.com/embed/${id}`;
+    }
+
+    // Handle youtube.com format
+    if (url.includes('youtube.com/watch')) {
+      const id = url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${id}`;
+    }
+
+    // Already an embed URL
+    return url;
+  };
 
   return (
-    <div className="relative h-[56.25vw]">
-      <video poster={data?.thumbnailUrl} className="w-full h-[56.25vw] object-cover brightness-[60%] transition duration-500" autoPlay muted loop src={data?.videoUrl}></video>
-      <div className="absolute top-[30%] md:top-[40%] ml-4 md:ml-16">
-        <p className="text-white text-1xl md:text-5xl h-full w-[50%] lg:text-6xl font-bold drop-shadow-xl">
+    <div className="relative h-[40vh] sm:h-[50vh] lg:h-[56.25vw]">
+      <div className="absolute inset-0 bg-black bg-opacity-50 z-10" />
+      <iframe
+        className="w-full h-full object-cover"
+        src={`${getEmbedUrl(data?.videoUrl)}?autoplay=1&mute=1&loop=1&controls=0&playlist=${getEmbedUrl(data?.videoUrl)?.split('/').pop()}&modestbranding=1`}
+        title={data?.title}
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+      <div className="absolute top-[20%] sm:top-[30%] md:top-[40%] ml-4 md:ml-16 z-20">
+        <p className="text-white text-xl sm:text-3xl md:text-5xl lg:text-6xl font-bold drop-shadow-xl max-w-[90%] md:max-w-[80%] lg:max-w-[50%]">
           {data?.title}
         </p>
-        <p className="text-white text-[8px] md:text-lg mt-3 md:mt-8 w-[90%] md:w-[80%] lg:w-[50%] drop-shadow-xl">
+        <p className="text-white text-[10px] sm:text-sm md:text-lg mt-3 md:mt-8 w-[90%] md:w-[80%] lg:w-[50%] drop-shadow-xl line-clamp-3">
           {data?.description}
         </p>
-        <div className="flex flex-row items-center mt-3 md:mt-4 gap-3">
+        <div className="flex flex-row items-center mt-3 md:mt-4 gap-2 md:gap-3">
           <PlayButton movieId={data?.id} />
           <button
             onClick={handleOpenModal}
             className="
-            bg-white
-            text-white
+              bg-white
+              text-white
               bg-opacity-30 
               rounded-md 
               py-1 md:py-2 
@@ -44,6 +69,7 @@ const Billboard: React.FC = () => {
               items-center
               hover:bg-opacity-20
               transition
+              duration-300
             "
           >
             <InformationCircleIcon className="w-4 md:w-7 mr-1" />
@@ -54,4 +80,5 @@ const Billboard: React.FC = () => {
     </div>
   )
 }
+
 export default Billboard;
